@@ -19,51 +19,17 @@
 <% for channel in @channels: %>
   <div class="action <% if channel.active isnt true: %>is-inactive<% end %>" data-id="<%= channel.id %>">
     <div class="action-block action-row">
-      <h2><%- @Icon('status', 'supergood-color inline') %> <%= channel.options.user.name %> <span class="text-muted">@<%= channel.options.user.screen_name %></span></h2>
+      <h2><%- @Icon('status', 'supergood-color inline') %> <%= channel.options.first_name %> <span class="text-muted">@<%= channel.options.username %></span></h2>
     </div>
     <div class="action-flow action-flow--row">
-      <div class="action-block">
-        <h3><%- @T('Search Terms') %></h3>
-        <% if channel.options.sync.search: %>
-          <% for search in channel.options.sync.search: %>
-            <%= search.term %><br>
-          <% end %>
-        <% end %>
-      </div>
       <%- @Icon('arrow-right', 'action-flow-icon') %>
       <div class="action-block">
-        <h3><%- @T('Group') %></h3>
-        <% if channel.options.sync.search: %>
-          <% for search in channel.options.sync.search: %>
-            <%= search.groupName %><br>
-          <% end %>
-        <% end %>
       </div>
     </div>
     <div class="action-flow action-flow--row">
       <div class="action-block">
-        <h3><%- @T('Mentions') %></h3>
-        @<%= channel.options.user.screen_name %>
-      </div>
-      <%- @Icon('arrow-right', 'action-flow-icon') %>
-      <div class="action-block">
-        <h3><%- @T('Group') %></h3>
-        <% if channel.options.sync.mentions: %>
-          <%= channel.options.sync.mentions.groupName %>
-        <% end %>
-      </div>
-    </div>
-    <div class="action-flow action-flow--row">
-      <div class="action-block">
-        <h3><%- @T('Direct Messages') %></h3>
-        @<%= channel.options.user.screen_name %>
-      </div>
-      <%- @Icon('arrow-right', 'action-flow-icon') %>
-      <div class="action-block">
-        <h3><%- @T('Group') %></h3>
-        <% if channel.options.sync.direct_messages: %>
-          <%= channel.options.sync.direct_messages.groupName %>
-        <% end %>
+        <h3><%- @T('Messages') %></h3>
+
       </div>
     </div>
     <div class="action-controls">
