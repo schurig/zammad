@@ -93,6 +93,49 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
     model_update_render(Channel, params)
   end
 
+  def telegram_index
+    permission_check('admin.channel_telegram')
+    assets = {}
+    ExternalCredential.where(name: 'telegram').each { |external_credential|
+      assets = external_credential.assets(assets)
+    }
+    channel_ids = []
+    Channel.order(:id).each { |channel|
+      next if channel.area != 'Telegram::Account'
+      assets = channel.assets(assets)
+      channel_ids.push channel.id
+    }
+    render json: {
+      assets: assets,
+      channel_ids: channel_ids
+    }
+  end
+
+  def telegram_add
+    permission_check('admin.channel_telegram')
+
+    # fetch telegram bot info (user_id, username, first_name)
+    # check if user_id is already in database (duplication check)
+      # send zammad webhook url to telegram api
+      # save user_id, username, first_name to database
+      # save destination group_id setting here
+    # reject and return error (duplicated bot)
+
+    render json: {
+      ok: :ok
+     }
+  end
+
+  def telegram_update
+    permission_check('admin.channel_telegram')
+
+    # save destination group_id setting here
+
+    render json: {
+      ok: :ok
+    }
+  end
+
   def email_index
     permission_check('admin.channel_email')
     system_online_service = Setting.get('system_online_service')

@@ -17,6 +17,11 @@ Zammad::Application.routes.draw do
   match api_path + '/channels/facebook_index',        to: 'channels#facebook_index',      via: :get
   match api_path + '/channels/facebook_verify/:id',   to: 'channels#facebook_verify',     via: :post
 
+  # telegram helper
+  match api_path + '/channels/telegram_index',        to: 'channels#telegram_index',      via: :get
+  match api_path + '/channels/telegram_add',          to: 'channels#telegram_add',     via: :post
+  match api_path + '/channels/telegram_update/:id',   to: 'channels#telegram_update',     via: :post
+
   # channels
   match api_path + '/channels/group/:id',             to: 'channels#group_update',        via: :post
   match api_path + '/channels/:id',                   to: 'channels#destroy',             via: :delete

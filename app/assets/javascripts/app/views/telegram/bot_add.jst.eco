@@ -1,0 +1,18 @@
+<div class="alert alert--danger hidden" role="alert"></div>
+<p>
+  <%- @T('The tutorial on how to manage a %s is hosted on our [online documentation](https://zammad.org/documentation/channel/telegram).', 'Telegram Bot') %>
+</p>
+<fieldset>
+  <h2><%- @T('Enter your %s api token', 'Telegram') %></h2>
+  <div class="input form-group">
+    <div class="formGroup-label">
+      <label for="api_token">Telegram Api Token <span>*</span></label>
+    </div>
+    <div class="controls">
+      <input id="api_token" type="text" name="api_token" value="<% if @external_credential && @external_credential.credentials: %><%= @external_credential.credentials.api_token %><% end %>" class="form-control" required autocomplete="off" >
+    </div>
+  </div>
+  <h2><%- @T('Messages Group') %></h2>
+  <p class="description"><%- @T('Choose which group %s will get added to.', 'messages') %></p>
+  <div class="js-messagesGroup"></div>
+</fieldset>
