@@ -3,6 +3,9 @@
 class ChannelsController < ApplicationController
   before_action :authentication_check
 
+  require 'net/http'
+  require 'telegramAPI'
+
 =begin
 
 Resource:
@@ -113,6 +116,31 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
 
   def telegram_add
     permission_check('admin.channel_telegram')
+
+    return if !params[:api_token]
+
+    api_base = 'https://api.telegram.org/bot' + params[:api_token]
+    result = Net::HTTP.get(URI.parse(api_base + '/getme'))
+    bot = JSON.parse(result)
+
+    return if !bot['ok']
+
+    channel = Channel.create(
+      area: 'Telegram::Account',
+      options: {
+        user_id: bot['result']['id'],
+        username: bot['result']['username'],
+        first_name: bot['result']['first_name'],
+        api_token: params[:api_token],
+      },
+      group_id: params[:group_id],
+      last_log_in: nil,
+      last_log_out: nil,
+      status_in: 'ok',
+      status_out: 'ok',
+      active: true,
+    )
+    channel.save
 
     # fetch telegram bot info (user_id, username, first_name)
     # check if user_id is already in database (duplication check)

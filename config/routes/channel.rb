@@ -19,7 +19,7 @@ Zammad::Application.routes.draw do
 
   # telegram helper
   match api_path + '/channels/telegram_index',        to: 'channels#telegram_index',      via: :get
-  match api_path + '/channels/telegram_add',          to: 'channels#telegram_add',     via: :post
+  match api_path + '/channels/telegram_add',          to: 'channels#telegram_add',        via: :post
   match api_path + '/channels/telegram_update/:id',   to: 'channels#telegram_update',     via: :post
 
   # channels
