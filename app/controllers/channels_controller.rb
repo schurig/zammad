@@ -96,6 +96,18 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
     model_update_render(Channel, params)
   end
 
+  skip_before_action :authentication_check
+  def telegram_webhook
+    # check if telegram account is correct
+    # check telegram update type (only allow messages for now)
+    # check if ticket is already present for the telegram message
+    # create new ticket
+
+    render json: {
+      ok: :ok,
+    }
+  end
+
   def telegram_index
     permission_check('admin.channel_telegram')
     assets = {}
@@ -125,12 +137,17 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
 
     return if !bot['ok']
 
-    channel = Channel.create(
+    # check account duplicate
+    # return if telegram_account_duplicate?(channel_id)
+      # send zammad webhook url to telegram api https://core.telegram.org/bots/api#setwebhook
+
+    result = Channel.create(
       area: 'Telegram::Account',
       options: {
         user_id: bot['result']['id'],
         username: bot['result']['username'],
         first_name: bot['result']['first_name'],
+        # also save last_name if present
         api_token: params[:api_token],
       },
       group_id: params[:group_id],
@@ -140,22 +157,20 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
       status_out: 'ok',
       active: true,
     )
-    channel.save
 
-    # fetch telegram bot info (user_id, username, first_name)
-    # check if user_id is already in database (duplication check)
-      # send zammad webhook url to telegram api
-      # save user_id, username, first_name to database
-      # save destination group_id setting here
-    # reject and return error (duplicated bot)
+    # save destination group_id setting here
+    # reject and return error (duplicated bot) if already in database
 
-    render json: {
-      ok: :ok
-     }
+    render json: result
   end
 
   def telegram_update
     permission_check('admin.channel_telegram')
+
+    channel_id = params[:channel_id]
+
+    # verify access
+    return if channel_id && !check_access(channel_id)
 
     # save destination group_id setting here
 

@@ -1,0 +1,63 @@
+# encoding: utf-8
+require 'test_helper'
+
+class ChannelsControllerTest < ActionDispatch::IntegrationTest
+  setup do
+
+    # set accept header
+    @headers = { 'ACCEPT' => 'application/json', 'CONTENT_TYPE' => 'application/json' }
+
+    # create agent
+    roles  = Role.where(name: %w(Admin Agent))
+    groups = Group.all
+
+    UserInfo.current_user_id = 1
+    @admin = User.create_or_update(
+      login: 'packages-admin',
+      firstname: 'Packages',
+      lastname: 'Admin',
+      email: 'packages-admin@example.com',
+      password: 'adminpw',
+      active: true,
+      roles: roles,
+      groups: groups,
+    )
+
+    # create agent
+    roles = Role.where(name: 'Agent')
+    @agent = User.create_or_update(
+      login: 'packages-agent@example.com',
+      firstname: 'Rest',
+      lastname: 'Agent',
+      email: 'packages-agent@example.com',
+      password: 'agentpw',
+      active: true,
+      roles: roles,
+      groups: groups,
+    )
+
+    # create customer without org
+    roles = Role.where(name: 'Customer')
+    @customer_without_org = User.create_or_update(
+      login: 'packages-customer1@example.com',
+      firstname: 'Packages',
+      lastname: 'Customer1',
+      email: 'packages-customer1@example.com',
+      password: 'customer1pw',
+      active: true,
+      roles: roles,
+    )
+
+  end
+
+  test '01 telegram_webhook returns ok' do
+
+    # index
+    post '/api/v1/channels/telegram_webhook', {}, @headers
+    assert_response(200)
+
+    result = JSON.parse(@response.body)
+    assert_equal(Hash, result.class)
+    assert_equal({ 'ok' => 'ok' }, result)
+  end
+end
