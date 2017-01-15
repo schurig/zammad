@@ -61,4 +61,8 @@ class ChannelsControllerTest < ActionDispatch::IntegrationTest
     assert_equal(Hash, result.class)
     assert_equal({ 'ok' => 'ok' }, result)
   end
+
+  test '0x telegram_webhook with existing ticket adds ticket_article'
+  test '0x telegram_webhook sends welcome message on /start'
+  test '0x telegram_webhook closes the ticket on /stop'
 end
