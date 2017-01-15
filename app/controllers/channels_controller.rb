@@ -98,14 +98,33 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
 
   skip_before_action :authentication_check
   def telegram_webhook
-    # check if telegram account is correct
-    # check telegram update type (only allow messages for now)
-    # check if ticket is already present for the telegram message
-    # create new ticket
+    # TODO: get group_id
+    group_id = 1
 
-    render json: {
-      ok: :ok,
+    return if !params['bid']
+    return if !params['message']
+
+    channel = Channel.find(9)
+    # TODO: find correct channel by type Telegram::Account and params['bid']
+    return if !channel
+
+    # TODO: check if message text matches "/start"
+      # send welcome message and don't create ticket
+    # TODO: check if message matches "/end"
+      # find ticket and close it
+
+    telegram = Telegram.new()
+
+    user = telegram.to_user(params)
+    ticket = telegram.to_ticket(params, user, group_id, channel)
+
+    result = {
+      ticket: {
+        id: ticket.id,
+        number: ticket.number
+      }
     }
+    render json: result, status: :ok
   end
 
   def telegram_index
@@ -137,17 +156,18 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
 
     return if !bot['ok']
 
-    # check account duplicate
-    # return if telegram_account_duplicate?(channel_id)
-      # send zammad webhook url to telegram api https://core.telegram.org/bots/api#setwebhook
+    # TODO: check account duplicate
+    # TODO: get correct group_id from frontend
 
     result = Channel.create(
       area: 'Telegram::Account',
       options: {
-        user_id: bot['result']['id'],
-        username: bot['result']['username'],
-        first_name: bot['result']['first_name'],
-        # also save last_name if present
+        bot: {
+          id: bot['result']['id'],
+          username: bot['result']['username'],
+          first_name: bot['result']['first_name'],
+          # also save last_name if present
+        },
         api_token: params[:api_token],
       },
       group_id: params[:group_id],
@@ -158,8 +178,8 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
       active: true,
     )
 
-    # save destination group_id setting here
-    # reject and return error (duplicated bot) if already in database
+    # TODO: send zammad webhook url to telegram api https://core.telegram.org/bots/api#setwebhook
+    # /api/v1/channels/telegram_webhook?bid=#{result.options.bot.id}
 
     render json: result
   end

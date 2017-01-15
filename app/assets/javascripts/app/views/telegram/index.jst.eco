@@ -19,7 +19,7 @@
 <% for channel in @channels: %>
   <div class="action <% if channel.active isnt true: %>is-inactive<% end %>" data-id="<%= channel.id %>">
     <div class="action-block action-row">
-      <h2><%- @Icon('status', 'supergood-color inline') %> <%= channel.options.first_name %> <span class="text-muted">@<%= channel.options.username %></span></h2>
+      <h2><%- @Icon('status', 'supergood-color inline') %> <%= channel.options.bot.first_name %> <span class="text-muted">@<%= channel.options.bot.username %></span></h2>
     </div>
     <div class="action-flow action-flow--row">
       <%- @Icon('arrow-right', 'action-flow-icon') %>

@@ -50,10 +50,11 @@ class ChannelsControllerTest < ActionDispatch::IntegrationTest
 
   end
 
-  test '01 telegram_webhook returns ok' do
+  test '01 telegram_webhook creates ticket' do
+    json = File.read('test/fixtures/telegram/personal_message_content.json')
+    post '/api/v1/channels/telegram_webhook', json, @headers
+    puts JSON.parse(@response.body).inspect
 
-    # index
-    post '/api/v1/channels/telegram_webhook', {}, @headers
     assert_response(200)
 
     result = JSON.parse(@response.body)
