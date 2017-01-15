@@ -29,7 +29,14 @@
     <div class="action-flow action-flow--row">
       <div class="action-block">
         <h3><%- @T('Messages') %></h3>
-
+        @<%= channel.options.bot.username %>
+      </div>
+      <%- @Icon('arrow-right', 'action-flow-icon') %>
+      <div class="action-block">
+        <h3><%- @T('Group') %></h3>
+        <% if channel.options: %>
+          <%= channel.options.groupName %>
+        <% end %>
       </div>
     </div>
     <div class="action-controls">

@@ -130,9 +130,6 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
   def telegram_index
     permission_check('admin.channel_telegram')
     assets = {}
-    ExternalCredential.where(name: 'telegram').each { |external_credential|
-      assets = external_credential.assets(assets)
-    }
     channel_ids = []
     Channel.order(:id).each { |channel|
       next if channel.area != 'Telegram::Account'
@@ -157,7 +154,10 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
     return if !bot['ok']
 
     # TODO: check account duplicate
-    # TODO: get correct group_id from frontend
+    group_id = nil
+    if params['messages'] && params['messages']['group_id']
+      group_id = params['messages']['group_id'].to_i
+    end
 
     result = Channel.create(
       area: 'Telegram::Account',
@@ -169,8 +169,9 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
           # also save last_name if present
         },
         api_token: params[:api_token],
+        group_id: group_id
       },
-      group_id: params[:group_id],
+      group_id: group_id,
       last_log_in: nil,
       last_log_out: nil,
       status_in: 'ok',
@@ -187,16 +188,24 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
   def telegram_update
     permission_check('admin.channel_telegram')
 
-    channel_id = params[:channel_id]
+    group_id = nil
+    if params['messages'] && params['messages']['group_id']
+      group_id = params['messages']['group_id'].to_i
+    end
+
+    channel_id = params[:id]
 
     # verify access
     return if channel_id && !check_access(channel_id)
 
-    # save destination group_id setting here
-
-    render json: {
-      ok: :ok
-    }
+    channel = Channel.find(channel_id)
+    result = channel.update_attributes(
+      options: {
+        group_id: group_id
+      }.merge(channel.options),
+      group_id: group_id
+    )
+    render json: result
   end
 
   def email_index

@@ -31,12 +31,12 @@ class Index extends App.ControllerSubContent
     channels = []
     for channel_id in data.channel_ids
       channel = App.Channel.find(channel_id)
-      if channel && channel.options && channel.options.sync && channel.options.sync.messages
+      if channel && channel.options && channel.options
         displayName = '-'
-        if channel.options.sync.messages.group_id
-          group = App.Group.find(channel.options.sync.messages.group_id)
+        if channel.options.group_id
+          group = App.Group.find(channel.options.group_id)
           displayName = group.displayName()
-        channel.options.sync.messages.groupName = displayName
+        channel.options.groupName = displayName
       channels.push channel
     @html App.view('telegram/index')(
       channels: channels
@@ -130,9 +130,22 @@ class BotAdd extends App.ControllerModal
     content = $(App.view('telegram/bot_add')(
       external_credential: @external_credential
     ))
+    createGroupSelection = (selected_id, prefix) ->
+      return App.UiElement.select.render(
+        name: "#{prefix}::group_id"
+        multiple: false
+        limit: 100
+        null: false
+        relation: 'Group'
+        nulloption: true
+        value: selected_id
+        class: 'form-control--small'
+      )
+
     content.find('.js-select').on('click', (e) =>
       @selectAll(e)
     )
+    content.find('.js-messagesGroup').replaceWith createGroupSelection(1, 'messages')
     content
 
   onClosed: =>
@@ -179,7 +192,7 @@ class BotEdit extends App.ControllerModal
       )
 
 
-    content.find('.js-messagesGroup').replaceWith createGroupSelection(@channel.options.sync.messages.group_id, 'messages')
+    content.find('.js-messagesGroup').replaceWith createGroupSelection(@channel.options.group_id, 'messages')
     content
 
   onClosed: =>
@@ -192,18 +205,19 @@ class BotEdit extends App.ControllerModal
     params = @formParams()
     search = []
     position = 0
-    @channel.options.sync = params
+    @channel.options = params
     @ajax(
       id:   'channel_telegram_update'
       type: 'POST'
-      url:  "#{@apiPath}/channels/telegram_verify/#{@channel.id}"
-      data: JSON.stringify(@channel.attributes())
+      url:  "#{@apiPath}/channels/telegram_update/#{@channel.id}"
+      data: JSON.stringify(@formParams())
       processData: true
       success: (data, status, xhr) =>
         @isChanged = true
         @close()
       fail: =>
         @formEnable(e)
+        @el.find('.alert').removeClass('hidden').text(data.error || 'Unable to save changes.')
     )
 
 App.Config.set('Telegram', { prio: 5100, name: 'Telegram', parent: '#channels', target: '#channels/telegram', controller: Index, permission: ['admin.channel_telegram'] }, 'NavBarAdmin')
