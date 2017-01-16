@@ -31,7 +31,7 @@ class Index extends App.ControllerSubContent
     channels = []
     for channel_id in data.channel_ids
       channel = App.Channel.find(channel_id)
-      if channel && channel.options && channel.options
+      if channel && channel.options
         displayName = '-'
         if channel.options.group_id
           group = App.Group.find(channel.options.group_id)

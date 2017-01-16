@@ -126,7 +126,7 @@ class Telegram
     UserInfo.current_user_id = user.id
 
     # set ticket state to open if not new
-    ticket_state = get_state(channel, message, ticket)
+    ticket_state = get_state(channel, telegram_update, ticket)
     if ticket_state.name != ticket.state.name
       ticket.state = ticket_state
       ticket.save!
@@ -149,8 +149,6 @@ class Telegram
   end
 
   def to_group(telegram_update, group_id, channel)
-    message = telegram_update['message']
-
     Rails.logger.debug 'import message'
 
     ticket = nil
@@ -159,10 +157,10 @@ class Telegram
     Transaction.execute(reset_user_id: true) do
 
       # check if parent exists
-      user = to_user(message)
+      user = to_user(telegram_update)
 
-      ticket = to_ticket(message, user, group_id, channel)
-      to_article(message, user, ticket, channel)
+      ticket = to_ticket(telegram_update, user, group_id, channel)
+      to_article(telegram_update, user, ticket, channel)
     end
 
     ticket
@@ -182,7 +180,6 @@ class Telegram
 
   def get_state(channel, telegram_update, ticket = nil)
     message = telegram_update['message']
-
     message_user = user(message)
 
     # no changes in post is from page user it self
