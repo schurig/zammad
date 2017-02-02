@@ -42,6 +42,8 @@ class App.TicketZoomArticleNew extends App.Controller
         possibleArticleType['email'] = true
       else if articleTypeCreate is 'facebook feed post'
         possibleArticleType['facebook feed comment'] = true
+      else if articleTypeCreate is 'telegram personal-message'
+        possibleArticleType['telegram personal-message'] = true
     if @ticket && @ticket.customer_id
       customer = App.User.find(@ticket.customer_id)
       if customer.email
@@ -102,6 +104,16 @@ class App.TicketZoomArticleNew extends App.Controller
         attributes: []
         internal:   false,
         features:   ['attachment']
+      }
+    if possibleArticleType['telegram personal-message']
+      @articleTypes.push {
+        name:              'telegram personal-message'
+        icon:              'telegram'
+        attributes:        []
+        internal:          false,
+        features:          ['attachment']
+        maxTextLength:     10000
+        warningTextLength: 5000
       }
 
     if @permissionCheck('ticket.customer')
