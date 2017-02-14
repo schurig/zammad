@@ -114,7 +114,7 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
   def telegram_add
     permission_check('admin.channel_telegram')
 
-    if !params[:api_token]
+    if params[:api_token].blank?
       return render json: {
         error: 'invalid api token',
         result: 'failed',
@@ -122,50 +122,37 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
       }, status: 400
     end
 
-    api_base = 'https://api.telegram.org/bot' + params[:api_token]
-    result = Net::HTTP.get(URI.parse(api_base + '/getme'))
-    return if !result
-    bot = JSON.parse(result)
+    token = params[:api_token]
 
-    if !bot['ok']
-      return render json: {
-        error: 'invalid api token',
+    # verify token
+    begin
+      bot = Telegram.check_token(token)
+    rescue => e
+      render json: {
+        error: e.message,
         result: 'failed',
         message: 'Invalid api token'
       }, status: 400
+      return
     end
 
-    return if telegram_bot_duplicate?(bot['result']['id'])
+    if Telegram.bot_duplicate?(bot['id'])
+     render json: {
+        result: 'duplicate',
+        message: 'Bot already exists!',
+      }, status: 400
+      return
+    end
 
+    # create channel
     group_id = nil
     if params['messages'] && params['messages']['group_id']
       group_id = params['messages']['group_id'].to_i
     end
 
-    result = Channel.create(
-      area: 'Telegram::Bot',
-      options: {
-        bot: {
-          id: bot['result']['id'],
-          username: bot['result']['username'],
-          first_name: bot['result']['first_name'],
-          last_name: bot['result']['last_name']
-        },
-        api_token: params[:api_token],
-        group_id: group_id
-      },
-      group_id: group_id,
-      last_log_in: nil,
-      last_log_out: nil,
-      status_in: 'ok',
-      status_out: 'ok',
-      active: true,
-    )
+    channel = Telegram.create_or_update_channel(token, group_id)
 
-    # TODO: send zammad webhook url to telegram api https://core.telegram.org/bots/api#setwebhook
-    # /api/v1/channels/telegram_webhook?bid=#{result.options.bot.id}
-
-    render json: result
+    render json: channel
   end
 
   def telegram_update
@@ -183,26 +170,46 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
     return if channel_id && !check_access(channel_id)
 
     channel = Channel.find(channel_id)
-    options = channel.options.merge({group_id: group_id})
-    result = channel.update_attributes(
-      options: options,
-      group_id: group_id
-    )
-    render json: result
+    channel = Telegram.create_or_update_channel(nil, group_id, channel)
+
+    render json: channel
   end
 
   skip_before_action :authentication_check
   def telegram_webhook
-    return if !params['bid']
-    return if !params['message']
+    if !params['bid']
+      render json: {
+        error: 'bot param not found',
+        result: 'failed',
+        message: 'bot param not found'
+      }, status: 400
+      return
+    end
 
-    channel = telegram_bot_by_bot_id(params['bid'])
+    channel = Telegram.bot_by_bot_id(params['bid'])
     if !channel
-      return render json: {
+      render json: {
         error: 'bot not found',
         result: 'failed',
         message: 'bot not found'
       }, status: 400
+      return
+    end
+
+#p "öööö #{channel.options[:callback_token]} != #{params['callback_token']}"
+    if channel.options[:callback_token] != params['callback_token']
+      return render json: {
+        error: 'invalid callback token',
+        result: 'failed',
+        message: 'invalid callback token'
+      }, status: 400
+    end
+
+    # prevent multible update
+    message_id = Telegram.message_id(params)
+    if Ticket::Article.find_by(message_id: message_id)
+      render json: {}, status: :ok
+      return
     end
 
     group_id = nil
@@ -210,22 +217,26 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
       group_id = channel.options[:group_id]
     end
 
-    # TODO: check if message text matches "/start"
-      # send welcome message and don't create ticket
-    # TODO: check if message matches "/end"
+    telegram = Telegram.new(channel.options[:api_token])
+
+    # send welcome message and don't create ticket
+    if params[:message][:text].present? && params[:message][:text] =~ /^\/start/
+      telegram.message(params[:message][:chat][:id], 'You are welcome! Just ask me something!')
+      render json: {}, status: :ok
+      return
+    elsif params[:message][:text].present? && params[:message][:text] =~ /^\/end/
       # find ticket and close it
+      user = telegram.to_user(params)
+      ticket = Ticket.where(customer_id: user.id).order(:updated_at).first
+      ticket.state = Ticket::State.find_by(name: 'closed')
+      ticket.save!
+      render json: {}, status: :ok
+      return
+    end
 
-    telegram = Telegram.new()
+    telegram.to_group(params, group_id, channel)
 
-    ticket = telegram.to_group(params, group_id, channel)
-
-    result = {
-      ticket: {
-        id: ticket.id,
-        number: ticket.number
-      }
-    }
-    render json: result, status: :ok
+    render json: {}, status: :ok
   end
 
   def email_index
@@ -474,32 +485,6 @@ curl http://localhost/api/v1/channels.json -v -u #{login}:#{password} -H "Conten
       return true
     }
     false
-  end
-
-  def telegram_bot_duplicate?(bot_id, channel_id = nil)
-    Channel.where(area: 'Telegram::Bot').each { |channel|
-      next if !channel.options
-      next if !channel.options[:bot]
-      next if !channel.options[:bot][:id]
-      next if channel.options[:bot][:id] != bot_id
-      next if channel.id.to_s == channel_id.to_s
-      render json: {
-        result: 'duplicate',
-        message: 'Bot already exists!',
-      }
-      return true
-    }
-    false
-  end
-
-  def telegram_bot_by_bot_id(bot_id)
-    Channel.where(area: 'Telegram::Bot').each { |channel|
-      next if !channel.options
-      next if !channel.options[:bot]
-      next if !channel.options[:bot][:id]
-      return channel if channel.options[:bot][:id].to_s == bot_id.to_s
-    }
-    nil
   end
 
   def check_online_service

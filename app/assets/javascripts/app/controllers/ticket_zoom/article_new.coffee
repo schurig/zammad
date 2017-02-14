@@ -345,6 +345,11 @@ class App.TicketZoomArticleNew extends App.Controller
       params.content_type = 'text/plain'
       params.body = App.Utils.html2text(params.body, true)
 
+    if params.type is 'telegram personal-message'
+      App.Utils.htmlRemoveRichtext(@$('[data-name=body]'), false)
+      params.content_type = 'text/plain'
+      params.body = App.Utils.html2text(params.body, true)
+
     params
 
   validate: =>
@@ -509,7 +514,7 @@ class App.TicketZoomArticleNew extends App.Controller
       @$('[data-name=body] [data-signature=true]').remove()
 
     # remove richtext
-    if @type is 'twitter status' || @type is 'twitter direct-message'
+    if @type is 'twitter status' || @type is 'twitter direct-message' || @type is 'telegram personal-message'
       rawHTML = @$('[data-name=body]').html()
       cleanHTML = App.Utils.htmlRemoveRichtext(rawHTML)
       if cleanHTML && cleanHTML.html() != rawHTML
