@@ -36,7 +36,7 @@ returns
 
   def self.set_webhook(token, callback_url)
     if callback_url =~ /^http:\/\//i
-      raise 'webhook url need to start with https://'
+      raise 'webhook url need to start with https://, you use http://'
     end
     api = TelegramAPI.new(token)
     begin
@@ -51,7 +51,7 @@ returns
 
 create or update channel, store bot attributes and verify token
 
-  channel = Telegram.create_or_update_channel('token', group_id)
+  channel = Telegram.create_or_update_channel('token', params)
 
 returns
 
@@ -59,11 +59,29 @@ returns
 
 =end
 
-  def self.create_or_update_channel(token, group_id, channel = nil)
+  def self.create_or_update_channel(token, params, channel = nil)
+
     if channel && !token
       token = channel.options[:api_token]
     end
-    bot = check_token(token)
+
+    # verify token
+    bot = Telegram.check_token(token)
+
+    if !channel
+      if Telegram.bot_duplicate?(bot['id'])
+        raise 'Bot already exists!'
+      end
+    end
+
+    if params[:group_id].blank?
+      raise 'Group needed!'
+    else
+      group = Group.find_by(id: params[:group_id])
+    end
+    if !group
+      raise 'Group invalid!'
+    end
 
     # generate randam callback token
     callback_token = SecureRandom.urlsafe_base64(10)
@@ -89,9 +107,9 @@ returns
       callback_token: callback_token,
       callback_url: callback_url,
       api_token: token,
-      group_id: group_id,
+      welcome: params[:welcome],
     }
-    channel.group_id = group_id
+    channel.group_id = group.id
     channel.active = true
     channel.save!
     channel
@@ -389,6 +407,21 @@ returns
 
   def to_group(params, group_id, channel)
     Rails.logger.debug 'import message'
+
+    # send welcome message and don't create ticket
+    text = params[:message][:text]
+    if text.present? && text =~ /^\/start/
+      message(params[:message][:chat][:id], channel.options[:welcome] || 'You are welcome! Just ask me something!')
+      return
+
+    # find ticket and close it
+    elsif text.present? && text =~ /^\/end/
+      user = to_user(params)
+      ticket = Ticket.where(customer_id: user.id).order(:updated_at).first
+      ticket.state = Ticket::State.find_by(name: 'closed')
+      ticket.save!
+      return
+    end
 
     ticket = nil
 

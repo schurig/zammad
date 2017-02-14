@@ -18,10 +18,13 @@ Zammad::Application.routes.draw do
   match api_path + '/channels/facebook_verify/:id',   to: 'channels#facebook_verify',     via: :post
 
   # telegram helper
-  match api_path + '/channels/telegram_index',        to: 'channels#telegram_index',      via: :get
-  match api_path + '/channels/telegram_add',          to: 'channels#telegram_add',        via: :post
-  match api_path + '/channels/telegram_update/:id',   to: 'channels#telegram_update',     via: :post
-  match api_path + '/channels/telegram_webhook/:callback_token', to: 'channels#telegram_webhook',    via: :post
+  match api_path + '/channels/telegram',              to: 'channels#telegram_index',      via: :get
+  match api_path + '/channels/telegram',              to: 'channels#telegram_add',        via: :post
+  match api_path + '/channels/telegram/:id',          to: 'channels#telegram_update',     via: :put
+  match api_path + '/channels/telegram_webhook/:callback_token', to: 'channels#telegram_webhook', via: :post
+  match api_path + '/channels/telegram_disable',      to: 'channels#telegram_disable',    via: :post
+  match api_path + '/channels/telegram_enable',       to: 'channels#telegram_enable',     via: :post
+  match api_path + '/channels/telegram',              to: 'channels#telegram_destroy',    via: :delete
 
   # channels
   match api_path + '/channels/group/:id',             to: 'channels#group_update',        via: :post

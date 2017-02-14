@@ -18,9 +18,9 @@ class Index extends App.ControllerSubContent
     @ajax(
       id:   'telegram_index'
       type: 'GET'
-      url:  "#{@apiPath}/channels/telegram_index"
+      url:  "#{@apiPath}/channels/telegram"
       processData: true
-      success: (data, status, xhr) =>
+      success: (data) =>
         @stopLoading()
         App.Collection.loadAssets(data.assets)
         @render(data)
@@ -33,44 +33,26 @@ class Index extends App.ControllerSubContent
       channel = App.Channel.find(channel_id)
       if channel && channel.options
         displayName = '-'
-        if channel.options.group_id
-          group = App.Group.find(channel.options.group_id)
+        if channel.group_id
+          group = App.Group.find(channel.group_id)
           displayName = group.displayName()
         channel.options.groupName = displayName
       channels.push channel
     @html App.view('telegram/index')(
       channels: channels
     )
-      # accounts: accounts
-      # showDescription: showDescription
-      # description:     description
-
-    if @channel_id
-      @edit(undefined, @channel_id)
-      @channel_id = undefined
-
-  show: (params) =>
-    for key, value of params
-      if key isnt 'el' && key isnt 'shown' && key isnt 'match'
-        @[key] = value
 
   new: (e) =>
     e.preventDefault()
-    channel_id = $(e.target).closest('.action').data('id')
     new BotAdd(
-      container: @el.parents('.content'),
+      container: @el.parents('.content')
       load: @load
     )
 
-  edit: (e, id) =>
-    if e
-      e.preventDefault()
-      id = $(e.target).closest('.action').data('id')
+  edit: (e) =>
+    e.preventDefault()
+    id = $(e.target).closest('.action').data('id')
     channel = App.Channel.find(id)
-    if !channel
-      @navigate '#channels/telegram'
-      return
-
     new BotEdit(
       channel: channel
       container: @el.parents('.content')
@@ -80,43 +62,46 @@ class Index extends App.ControllerSubContent
   delete: (e) =>
     e.preventDefault()
     id   = $(e.target).closest('.action').data('id')
-    item = App.Channel.find(id)
-    new App.ControllerGenericDestroyConfirm(
-      item:      item
+    new App.ControllerConfirm(
+      message: 'Sure?'
+      callback: =>
+        @ajax(
+          id:   'telegram_delete'
+          type: 'DELETE'
+          url:  "#{@apiPath}/channels/telegram"
+          data: JSON.stringify(id: id)
+          processData: true
+          success: =>
+            @load()
+        )
       container: @el.closest('.content')
-      callback:  @load
     )
 
   disable: (e) =>
     e.preventDefault()
     id   = $(e.target).closest('.action').data('id')
-    item = App.Channel.find(id)
-    item.active = false
-    item.save(
-      done: =>
-        @load()
-      fail: =>
+    @ajax(
+      id:   'telegram_disable'
+      type: 'POST'
+      url:  "#{@apiPath}/channels/telegram_disable"
+      data: JSON.stringify(id: id)
+      processData: true
+      success: =>
         @load()
     )
 
   enable: (e) =>
     e.preventDefault()
     id   = $(e.target).closest('.action').data('id')
-    item = App.Channel.find(id)
-    item.active = true
-    item.save(
-      done: =>
-        @load()
-      fail: =>
+    @ajax(
+      id:   'telegram_enable'
+      type: 'POST'
+      url:  "#{@apiPath}/channels/telegram_enable"
+      data: JSON.stringify(id: id)
+      processData: true
+      success: =>
         @load()
     )
-
-  description: (e) =>
-    new App.ControllerGenericDescription(
-      description: App.Telegram.description
-      container:   @el.closest('.content')
-    )
-
 
 class BotAdd extends App.ControllerModal
   head: 'Add Telegram Bot'
@@ -126,13 +111,10 @@ class BotAdd extends App.ControllerModal
   small: true
 
   content: ->
-    @external_credential = App.ExternalCredential.findByAttribute('name', 'telegram')
-    content = $(App.view('telegram/bot_add')(
-      external_credential: @external_credential
-    ))
-    createGroupSelection = (selected_id, prefix) ->
+    content = $(App.view('telegram/bot_add')())
+    createGroupSelection = (selected_id) ->
       return App.UiElement.select.render(
-        name: "#{prefix}::group_id"
+        name: 'group_id'
         multiple: false
         limit: 100
         null: false
@@ -145,7 +127,7 @@ class BotAdd extends App.ControllerModal
     content.find('.js-select').on('click', (e) =>
       @selectAll(e)
     )
-    content.find('.js-messagesGroup').replaceWith createGroupSelection(1, 'messages')
+    content.find('.js-messagesGroup').replaceWith createGroupSelection(1)
     content
 
   onClosed: =>
@@ -155,18 +137,17 @@ class BotAdd extends App.ControllerModal
 
   onSubmit: (e) =>
     @formDisable(e)
-
-    # verify app credentals
     @ajax(
       id:   'telegram_app_verify'
       type: 'POST'
-      url:  "#{@apiPath}/channels/telegram_add"
+      url:  "#{@apiPath}/channels/telegram"
       data: JSON.stringify(@formParams())
       processData: true
-      success: (data, status, xhr) =>
+      success: =>
         @isChanged = true
         @close()
-      fail: =>
+      error: (xhr) =>
+        data = JSON.parse(xhr.responseText)
         @formEnable(e)
         @el.find('.alert').removeClass('hidden').text(data.error || 'Unable to save Bot.')
     )
@@ -177,11 +158,11 @@ class BotEdit extends App.ControllerModal
   buttonCancel: true
 
   content: ->
-    content = $( App.view('telegram/bot_edit')(channel: @channel) )
+    content = $(App.view('telegram/bot_edit')(channel: @channel))
 
-    createGroupSelection = (selected_id, prefix) ->
+    createGroupSelection = (selected_id) ->
       return App.UiElement.select.render(
-        name: "#{prefix}::group_id"
+        name: 'group_id'
         multiple: false
         limit: 100
         null: false
@@ -191,8 +172,7 @@ class BotEdit extends App.ControllerModal
         class: 'form-control--small'
       )
 
-
-    content.find('.js-messagesGroup').replaceWith createGroupSelection(@channel.options.group_id, 'messages')
+    content.find('.js-messagesGroup').replaceWith createGroupSelection(@channel.group_id)
     content
 
   onClosed: =>
@@ -203,8 +183,6 @@ class BotEdit extends App.ControllerModal
   onSubmit: (e) =>
     @formDisable(e)
     params = @formParams()
-    search = []
-    position = 0
     @channel.options = params
     @ajax(
       id:   'channel_telegram_update'
@@ -212,10 +190,11 @@ class BotEdit extends App.ControllerModal
       url:  "#{@apiPath}/channels/telegram_update/#{@channel.id}"
       data: JSON.stringify(@formParams())
       processData: true
-      success: (data, status, xhr) =>
+      success: =>
         @isChanged = true
         @close()
-      fail: =>
+      error: (xhr) =>
+        data = JSON.parse(xhr.responseText)
         @formEnable(e)
         @el.find('.alert').removeClass('hidden').text(data.error || 'Unable to save changes.')
     )

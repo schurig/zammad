@@ -13,7 +13,8 @@ class TelegramControllerTest < ActionDispatch::IntegrationTest
     #Setting.set('http_type', 'http')
     Setting.set('http_type', 'https')
     Setting.set('fqdn', 'me.zammad.com')
-    @channel = Telegram.create_or_update_channel(token, group_id)
+    Channel.where(area: 'Telegram::Bot').destroy_all
+    @channel = Telegram.create_or_update_channel(token, { group_id: group_id, welcome: 'hi!' })
 
     groups = Group.where(name: 'Users')
     roles  = Role.where(name: %w(Agent))
@@ -36,15 +37,18 @@ class TelegramControllerTest < ActionDispatch::IntegrationTest
     Ticket.destroy_all
 
     # start communication #1
-    #token = '291607826:AAH2dDv66JHL4D-Y_i7Q-mEvJmJ-5Rk7cgA'
     post '/api/v1/channels/telegram_webhook', read_messaage('personal1_message_start'), @headers
-    assert_response(400)
+    assert_response(404)
     result = JSON.parse(@response.body)
-    assert_equal('bot param not found', result['error'])
 
-    callback_url = "/api/v1/channels/telegram_webhook?bid=#{@channel.options[:bot][:id]}"
+    post '/api/v1/channels/telegram_webhook/not_existing', read_messaage('personal1_message_start'), @headers
+    assert_response(422)
+    result = JSON.parse(@response.body)
+    assert_equal('bot param missing', result['error'])
+
+    callback_url = "/api/v1/channels/telegram_webhook/not_existing?bid=#{@channel.options[:bot][:id]}"
     post callback_url, read_messaage('personal1_message_start'), @headers
-    assert_response(400)
+    assert_response(422)
     result = JSON.parse(@response.body)
     assert_equal('invalid callback token', result['error'])
 
@@ -54,7 +58,7 @@ class TelegramControllerTest < ActionDispatch::IntegrationTest
     #  headers: { 'Content-Type' => 'application/json' }
     #)
 
-    callback_url = "/api/v1/channels/telegram_webhook?bid=#{@channel.options[:bot][:id]}&callback_token=#{@channel.options[:callback_token]}"
+    callback_url = "/api/v1/channels/telegram_webhook/#{@channel.options[:callback_token]}?bid=#{@channel.options[:bot][:id]}"
     post callback_url, read_messaage('personal1_message_start'), @headers
     assert_response(200)
 
