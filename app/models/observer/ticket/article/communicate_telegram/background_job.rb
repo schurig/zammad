@@ -14,38 +14,30 @@ class Observer::Ticket::Article::CommunicateTelegram::BackgroundJob
 
     ticket = Ticket.lookup(id: article.ticket_id)
     log_error(article, "Can't find ticket.preferences for Ticket.find(#{article.ticket_id})") if !ticket.preferences
-    log_error(article, "Can't find ticket.preferences['channel_id'] for Ticket.find(#{article.ticket_id})") if !ticket.preferences['channel_id']
+    log_error(article, "Can't find ticket.preferences['telegram'] for Ticket.find(#{article.ticket_id})") if !ticket.preferences['telegram']
+    log_error(article, "Can't find ticket.preferences['telegram']['chat_id'] for Ticket.find(#{article.ticket_id})") if !ticket.preferences['telegram']['chat_id']
     channel = Channel.lookup(id: ticket.preferences['channel_id'])
     log_error(article, "No such channel id #{ticket.preferences['channel_id']}") if !channel
-    log_error(article, "Channel.find(#{channel.id}) isn't a telegram channel!") if channel.options[:adapter] !~ /\Atelegram/i
+    #log_error(article, "Channel.find(#{channel.id}) isn't a telegram channel!") if channel.options[:adapter] !~ /\Atelegram/i
+    log_error(article, "Channel.find(#{channel.id}) has not telegram api token!") if channel.options[:api_token].blank?
 
     begin
-      message = channel.deliver(
-        type:        article.type.name,
-        to:          article.to,
-        body:        article.body,
-        in_reply_to: article.in_reply_to
-      )
+      api = TelegramAPI.new(channel.options[:api_token])
+      result = api.sendMessage(ticket.preferences[:telegram][:chat_id], article.body)
     rescue => e
       log_error(article, e.message)
       return
     end
-    if !message
-      log_error(article, 'Got no message!')
-      return
-    end
 
     # fill article with message info
+    article.from = "@#{result['from']['username']}"
+    article.to = "@#{result['chat']['username']}"
 
-    article.from = "@#{tweet.sender.screen_name}"
-    article.to = "@#{tweet.recipient.screen_name}"
-
-    article.preferences['twitter'] = {
-      created_at: tweet.created_at,
-      recipient_id: tweet.recipient.id,
-      recipient_screen_name: tweet.recipient.screen_name,
-      sender_id: tweet.sender.id,
-      sender_screen_name: tweet.sender.screen_name,
+    article.preferences['telegram'] = {
+      date: result['date'],
+      from_id: result['from']['id'],
+      chat_id: result['chat']['id'],
+      message_id: result['message_id']
     }
 
     # set delivery status
@@ -53,7 +45,7 @@ class Observer::Ticket::Article::CommunicateTelegram::BackgroundJob
     article.preferences['delivery_status'] = 'success'
     article.preferences['delivery_status_date'] = Time.zone.now
 
-    article.message_id = tweet.id.to_s
+    article.message_id = "telegram.#{result['message_id']}.#{result['chat']['id']}"
 
     article.save!
 
